@@ -39,23 +39,42 @@
 //! So, in this example, the number of bag colors that can eventually contain at least one shiny gold bag is 4.
 
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct Bag {
     name: String,
     contents: Vec<Bag>,
+    quantity: usize,
+}
+
+impl PartialEq<Bag> for Bag {
+    fn eq(&self, other: &Bag) -> bool {
+        self.name == other.name && self.contents == other.contents
+    }
+}
+
+impl Eq for Bag {}
+
+impl Hash for Bag {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.contents.hash(state);
+    }
 }
 
 impl Bag {
-    /// Makes a new bag
-    pub fn new(name: &str, contents: Vec<Bag>) -> Bag {
+    /// Makes a new bag.
+    pub fn new(name: &str, quantity: usize, contents: Vec<Bag>) -> Bag {
         Bag {
             name: name.to_owned(),
-            contents: contents,
+            contents,
+            quantity,
         }
     }
 
+    /// recursively attempts to place the given bag exhaustively in our tree.
     pub fn place(&mut self, bag: &Bag) -> Result<(), &'static str> {
         let mut result = Err("couldn't place");
         // depth first - check if any of our contained bags can place it
@@ -74,6 +93,7 @@ impl Bag {
         result
     }
 
+    /// recursively checks if the given bag could be placed somewhere in our tree.
     pub fn is_placable(&self, bag: &Bag) -> Result<(), &'static str> {
         // depth first - check if any of our contained bags can place it
         for item in self.contents.iter() {
@@ -90,14 +110,15 @@ impl Bag {
         return Err("couldn't place");
     }
 
-    pub fn find_bag(&self, bag_name: &str, depth: isize) -> HashSet<Bag> {
+    /// recersively finds all of the unique ways to hold `bag_name`.
+    pub fn find_ways_to_hold_bag(&self, bag_name: &str, depth: isize) -> HashSet<Bag> {
         let mut ways = HashSet::new();
         if self.name == bag_name {
             println!("hit @ {}!", depth);
             ways.insert(self.clone());
         } else {
             for bag in self.contents.iter() {
-                let more_ways = bag.find_bag(bag_name, depth + 1);
+                let more_ways = bag.find_ways_to_hold_bag(bag_name, depth + 1);
                 if more_ways.len() != 0 {
                     // since we hold this bag that also holds the bag in question, we are a way
                     //   to hold it, so add self too
@@ -109,11 +130,27 @@ impl Bag {
         ways
     }
 
-    /// Puts the given bag into ours
+    /// Finds all of the bags named `bag_name` and returns them in a vector.
+    pub fn find_all_named(&self, bag_name: &str) -> HashSet<Bag> {
+        let mut bags = HashSet::new();
+
+        for bag in self.contents.iter() {
+            bags.extend(bag.find_all_named(bag_name));
+        }
+
+        if self.name == bag_name {
+            bags.insert(self.clone());
+        }
+
+        bags
+    }
+
+    /// Puts the given bag into ours.
     pub fn place_forced(&mut self, bag: Bag) {
         self.contents.push(bag);
     }
 
+    /// removes the given bag from our bag. Not recursive.
     pub fn remove(&mut self, bag: &Bag) -> Result<(), &'static str> {
         let len_before = self.contents.len();
         self.contents.retain(|b| !(bag.name == b.name));
@@ -134,9 +171,9 @@ impl std::fmt::Display for Bag {
 }
 
 
-pub fn part_one(data: &str) -> usize {
+pub fn parse_string_to_bags(data: &str) -> Bag {
     // Lets search for ways to store shiny gold bags!
-    let mut bags = Bag::new("root", vec![]);
+    let mut bags = Bag::new("root", 0, vec![]);
 
     // First regex splits up the line overall, second splits up individial bag items
     let basic_regex = regex::Regex::new(r"^([\w ]+) bags contain (.*)$").unwrap();
@@ -162,9 +199,9 @@ pub fn part_one(data: &str) -> usize {
             }
 
             let item_captures = items_regex.captures(item).unwrap();
-            bag_contents.push(Bag::new(&item_captures[2], vec![]));
+            bag_contents.push(Bag::new(&item_captures[2], item_captures[1].parse().unwrap(), vec![]));
         }
-        let bag = Bag::new(bag, bag_contents);
+        let bag = Bag::new(bag, 1, bag_contents);
         bags.place_forced(bag);
     }
     println!("Number of rules: {}", num_rules);
@@ -196,11 +233,33 @@ pub fn part_one(data: &str) -> usize {
             panic!("Failed to place {}", movable_bag);
         }
     }
+    bags
+}
+
+
+pub fn count_bags(bag: &Bag, outer: bool) -> usize {
+    let mut count = 0;
+
+    for sub_bag in bag.contents.iter() {
+        let result = count_bags(sub_bag, false);
+        count += bag.quantity * result;
+    }
+
+    if !outer {
+        count += bag.quantity;
+    }
+
+    count
+}
+
+
+pub fn part_one(data: &str) -> usize {
+    let bags = parse_string_to_bags(data);
 
     // count the possible ways to hold a shny gold bag, excluding holding them individually or the
     //   root fake bag holding all other bags
     const NAME_OF_INTEREST: &'static str = "shiny gold";
-    let mut possible_ways = bags.find_bag(NAME_OF_INTEREST, -1);
+    let mut possible_ways = bags.find_ways_to_hold_bag(NAME_OF_INTEREST, -1);
     possible_ways.retain(| item| item.name != NAME_OF_INTEREST && item.name != "root");
     for way in possible_ways.iter() {
         println!("Valid way: {}", way.name);
@@ -208,8 +267,19 @@ pub fn part_one(data: &str) -> usize {
     possible_ways.len()
 }
 
-pub fn part_two(_data: &str) -> usize {
-    0
+pub fn part_two(data: &str) -> usize {
+    let bags = parse_string_to_bags(data);
+
+    const NAME_OF_INTEREST: &'static str = "shiny gold";
+    let mut all_shiny_bags = bags.find_all_named(NAME_OF_INTEREST);
+
+    let mut count = 0;
+    for mut shiny_bag in all_shiny_bags.drain() {
+        shiny_bag.quantity = 1;
+        count += count_bags(&shiny_bag, true);
+    }
+
+    count
 }
 
 #[cfg(test)]
@@ -219,6 +289,12 @@ mod test {
     #[test]
     fn example() {
         assert_eq!(4, part_one(&EXAMPLE_DATA));
+    }
+
+    #[test]
+    fn example_part_two() {
+        assert_eq!(32, part_two(&EXAMPLE_DATA));
+        assert_eq!(126, part_two(&EXAMPLE_DATA_PART_TWO));
     }
 
     #[test]
@@ -244,6 +320,14 @@ dark olive bags contain 3 faded blue bags, 4 dotted black bags.
 vibrant plum bags contain 5 faded blue bags, 6 dotted black bags.
 faded blue bags contain no other bags.
 dotted black bags contain no other bags.";
+
+    const EXAMPLE_DATA_PART_TWO: &str = "shiny gold bags contain 2 dark red bags.
+dark red bags contain 2 dark orange bags.
+dark orange bags contain 2 dark yellow bags.
+dark yellow bags contain 2 dark green bags.
+dark green bags contain 2 dark blue bags.
+dark blue bags contain 2 dark violet bags.
+dark violet bags contain no other bags.";
 
     const MY_DATA: &str = "pale chartreuse bags contain 3 faded orange bags.
 drab gold bags contain 5 dark aqua bags.

@@ -1,9 +1,9 @@
 
-pub fn part_one(_data: &[i32]) -> i32 {
+pub fn part_one(_data: &str) -> i32 {
     0
 }
 
-pub fn part_two(_data: &[i32]) -> i32 {
+pub fn part_two(_data: &str) -> i32 {
     0
 }
 
@@ -11,9 +11,9 @@ pub fn part_two(_data: &[i32]) -> i32 {
 mod test {
     use super::*;
 
-    const EXAMPLE_DATA: [i32; 0] = [];
+    const EXAMPLE_DATA: &str = "";
 
-    const MY_DATA: [i32; 0] = [];
+    const MY_DATA: &str = "";
 
     #[test]
     fn example() {

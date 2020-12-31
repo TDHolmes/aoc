@@ -1,3 +1,4 @@
+#![feature(destructuring_assignment)]
 #![feature(deque_range)]
 
 pub mod day_01;

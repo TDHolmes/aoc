@@ -1,6 +1,3 @@
-#![feature(destructuring_assignment)]
-#![feature(deque_range)]
-
 pub mod day_01;
 pub mod day_02;
 pub mod day_03;

@@ -1,11 +1,5 @@
-[package]
-name = "aoc-2020"
-version = "0.1.0"
-authors = ["Tyler Holmes <tyler@holmesengineering.com>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-regex = "1"
-more-asserts = "0.2"
+[workspace]
+members = [
+    "aoc-2020",
+    "aoc-2021",
+]

@@ -2,15 +2,17 @@
 // use aoc_2021;
 
 const EXAMPLE_INPUT: &str = "";
+// const OUR_INPUT: Result<&str, std::str::Utf8Error> =
+//     std::str::from_utf8(include_bytes!("../assets/day_xx.txt"));
 
-fn part_one(_input: &str) -> i32 {
+fn part_one(_input: &str) -> isize {
     let mut result = 0;
     result += 2;
 
     result
 }
 
-fn part_two(_input: &str) -> i32 {
+fn part_two(_input: &str) -> isize {
     let mut result = 0;
     result += 2;
 
@@ -31,10 +33,14 @@ fn example_part_two() {
 
 #[test]
 fn test_part_one() {
-    assert_eq!(1 + 1, 2);
+    // let result = part_one(OUR_INPUT.unwrap());
+    // println!("part one: {}", result);
+    // assert_eq!(42, result);
 }
 
 #[test]
 fn test_part_two() {
-    assert_eq!(1 + 1, 2);
+    // let result = part_two(OUR_INPUT.unwrap());
+    // println!("part two: {}", result);
+    // assert_eq!(42, result);
 }

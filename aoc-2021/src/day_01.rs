@@ -4,11 +4,11 @@
 const DAY_01_INPUT: Result<&str, std::str::Utf8Error> =
     std::str::from_utf8(include_bytes!("../assets/day_01_part1.txt"));
 
-fn part_one(input: &str) -> i32 {
+fn part_one(input: &str) -> isize {
     let mut count = 0;
-    let mut previous_line = i32::MAX;
+    let mut previous_line = isize::MAX;
     for line in input.split_ascii_whitespace() {
-        let line_parsed: i32 = str::parse(line).unwrap();
+        let line_parsed: isize = str::parse(line).unwrap();
         print!("{:?} -> {}", line, line_parsed);
 
         if line_parsed > previous_line {
@@ -23,12 +23,12 @@ fn part_one(input: &str) -> i32 {
     count
 }
 
-fn part_two(input: &str) -> i32 {
+fn part_two(input: &str) -> isize {
     let mut count = 0;
-    let mut previous_sum = i32::MAX;
+    let mut previous_sum = isize::MAX;
     let mut buf = vec![];
     for line in input.split_ascii_whitespace() {
-        let line_parsed: i32 = str::parse(line).unwrap();
+        let line_parsed: isize = str::parse(line).unwrap();
         buf.insert(0, line_parsed);
         if buf.len() < 3 {
             println!("");
@@ -38,7 +38,7 @@ fn part_two(input: &str) -> i32 {
             buf.pop();
         }
 
-        let sum: i32 = buf.iter().sum();
+        let sum: isize = buf.iter().sum();
 
         if sum > previous_sum {
             println!("{} > {}? inc!", sum, previous_sum);

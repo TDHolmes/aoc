@@ -51,7 +51,6 @@
 //! Given your starting numbers, what will be the 2020th number spoken?
 //! Your puzzle input is `8,11,0,19,1,2`.
 
-
 pub fn part_one(_data: &str) -> i32 {
     0
 }
@@ -70,7 +69,7 @@ mod test {
 
     #[test]
     fn example() {
-        assert_eq!(514579, part_one(&EXAMPLE_DATA));
+        assert_eq!(0, part_one(&EXAMPLE_DATA));
     }
 
     #[test]

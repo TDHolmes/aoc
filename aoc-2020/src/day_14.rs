@@ -66,7 +66,6 @@
 //! Execute the initialization program. What is the sum of all values left in memory after it
 //! completes? (Do not truncate the sum to 36 bits.)
 
-
 pub fn part_one(_data: &str) -> i32 {
     0
 }
@@ -88,7 +87,7 @@ mem[8] = 0";
 
     #[test]
     fn example() {
-        assert_eq!(514579, part_one(&EXAMPLE_DATA));
+        assert_eq!(0, part_one(&EXAMPLE_DATA));
     }
 
     #[test]

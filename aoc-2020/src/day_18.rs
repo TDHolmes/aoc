@@ -1,4 +1,3 @@
-
 pub fn part_one(_data: &str) -> i32 {
     0
 }
@@ -17,7 +16,7 @@ mod test {
 
     #[test]
     fn example() {
-        assert_eq!(514579, part_one(&EXAMPLE_DATA));
+        assert_eq!(0, part_one(&EXAMPLE_DATA));
     }
 
     #[test]

@@ -17,16 +17,17 @@ const OUR_INPUT: Result<&str, std::str::Utf8Error> =
 
 #[derive(Debug)]
 struct Line {
-    start: (usize, usize),
-    end: (usize, usize),
+    start: (isize, isize),
+    end: (isize, isize),
 }
 
 impl Line {
-    pub fn new(start: (usize, usize), end: (usize, usize)) -> Option<Self> {
+    pub fn new(start: (isize, isize), end: (isize, isize)) -> Option<Self> {
         println!("Line::new({:?}, {:?})", start, end);
         let x_eq: bool = start.0 == end.0;
         let y_eq: bool = start.1 == end.1;
-        if !x_eq && !y_eq {
+        let diag = (end.0 - start.0).abs() == (end.1 - start.1).abs();
+        if !x_eq && !y_eq && !diag {
             return None;
         }
 
@@ -54,11 +55,11 @@ impl Line {
         let start_str = line_split.next()?;
         let end_str = line_split.next()?;
 
-        let start: Vec<usize> = start_str
+        let start: Vec<isize> = start_str
             .split(",")
             .map(|num| num.parse().expect("invalid num"))
             .collect();
-        let end: Vec<usize> = end_str
+        let end: Vec<isize> = end_str
             .split(",")
             .map(|num| num.parse().expect("invalid num"))
             .collect();
@@ -69,37 +70,75 @@ impl Line {
         Line::new((start[0], start[1]), (end[0], end[1]))
     }
 
-    pub fn iter<'a>(&'a self) -> LineIter<'a> {
+    pub fn iter<'a>(&'a self, allow_diagonal: bool) -> LineIter<'a> {
+        let mut diag_delta = (0, 0);
+        let iter_method = if self.start.1 == self.end.1 {
+            IterMethod::ByCols
+        } else if self.start.0 == self.end.0 {
+            IterMethod::ByRows
+        } else if (self.end.0 - self.start.0).abs() == (self.end.1 - self.start.1).abs() {
+            diag_delta = (
+                (self.end.0 - self.start.0) / (self.end.0 - self.start.0).abs(),
+                (self.end.1 - self.start.1) / (self.end.1 - self.start.1).abs(),
+            );
+            IterMethod::ByDiagonal
+        } else {
+            panic!("invalid line for iteration");
+        };
         LineIter {
             line: self,
             /// if the y coords are the same, we're iterating along the x axis
-            iter_x: self.start.1 == self.end.1,
+            method: iter_method,
+            allow_diagonal,
             delta: 0,
+            diag_delta,
         }
     }
 }
 
+enum IterMethod {
+    ByRows,
+    ByCols,
+    ByDiagonal,
+}
+
 struct LineIter<'a> {
     line: &'a Line,
-    iter_x: bool,
-    delta: usize,
+    method: IterMethod,
+    allow_diagonal: bool,
+    delta: isize,
+    diag_delta: (isize, isize),
 }
 
 impl Iterator for LineIter<'_> {
-    type Item = (usize, usize);
+    type Item = (isize, isize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let res = if self.iter_x {
-            if self.line.start.0 + self.delta > self.line.end.0 {
-                None
-            } else {
-                Some((self.line.start.0 + self.delta, self.line.start.1))
+        let res = match self.method {
+            IterMethod::ByCols => {
+                if self.line.start.0 + self.delta > self.line.end.0 {
+                    None
+                } else {
+                    Some((self.line.start.0 + self.delta, self.line.start.1))
+                }
             }
-        } else {
-            if self.line.start.1 + self.delta > self.line.end.1 {
-                None
-            } else {
-                Some((self.line.start.0, self.line.start.1 + self.delta))
+            IterMethod::ByRows => {
+                if self.line.start.1 + self.delta > self.line.end.1 {
+                    None
+                } else {
+                    Some((self.line.start.0, self.line.start.1 + self.delta))
+                }
+            }
+            IterMethod::ByDiagonal => {
+                if !self.allow_diagonal || self.delta > (self.line.end.0 - self.line.start.0).abs()
+                {
+                    None
+                } else {
+                    Some((
+                        self.line.start.0 + self.diag_delta.0 * self.delta,
+                        self.line.start.1 + self.diag_delta.1 * self.delta,
+                    ))
+                }
             }
         };
 
@@ -110,19 +149,21 @@ impl Iterator for LineIter<'_> {
 }
 
 struct ThermalVentsField<const ROWS: usize, const COLS: usize> {
+    allow_diagonal: bool,
     field: [[u8; COLS]; ROWS],
 }
 
 impl<const ROWS: usize, const COLS: usize> ThermalVentsField<ROWS, COLS> {
-    pub const fn new() -> Self {
+    pub const fn new(allow_diagonal: bool) -> Self {
         Self {
+            allow_diagonal,
             field: [[0; COLS]; ROWS],
         }
     }
 
     pub fn input_line(&mut self, line: Line) {
-        for (x, y) in line.iter() {
-            self.field[y][x] += 1;
+        for (x, y) in line.iter(self.allow_diagonal) {
+            self.field[y as usize][x as usize] += 1;
         }
     }
 
@@ -159,7 +200,7 @@ impl<const ROWS: usize, const COLS: usize> core::fmt::Display for ThermalVentsFi
 }
 
 fn part_one<const ROWS: usize, const COLS: usize>(input: &str) -> isize {
-    let mut field = ThermalVentsField::<ROWS, COLS>::new();
+    let mut field = ThermalVentsField::<ROWS, COLS>::new(false);
     let mut lines: Vec<Line> = Vec::<Line>::new();
     for line in input.split_terminator("\n") {
         if let Some(line) = Line::from_string(line) {
@@ -174,11 +215,20 @@ fn part_one<const ROWS: usize, const COLS: usize>(input: &str) -> isize {
     field.check_intersections(2)
 }
 
-fn part_two(_input: &str) -> isize {
-    let mut result = 0;
-    result += 2;
+fn part_two<const ROWS: usize, const COLS: usize>(input: &str) -> isize {
+    let mut field = ThermalVentsField::<ROWS, COLS>::new(true);
+    let mut lines: Vec<Line> = Vec::<Line>::new();
+    for line in input.split_terminator("\n") {
+        if let Some(line) = Line::from_string(line) {
+            lines.push(line);
+        }
+    }
+    for line in lines.into_iter() {
+        field.input_line(line);
+    }
+    println!("{}", field);
 
-    result
+    field.check_intersections(2)
 }
 
 #[test]
@@ -190,9 +240,9 @@ fn example_part_one() {
 
 #[test]
 fn example_part_two() {
-    let result = part_two(EXAMPLE_INPUT);
+    let result = part_two::<10, 10>(EXAMPLE_INPUT);
     println!("example result: {}", result);
-    assert_eq!(result, 2);
+    assert_eq!(result, 12);
 }
 
 #[test]
@@ -204,9 +254,9 @@ fn test_part_one() {
 
 #[test]
 fn test_part_two() {
-    // let result = part_two(OUR_INPUT.unwrap());
-    // println!("part two: {}", result);
-    // assert_eq!(42, result);
+    let result = part_two::<1_000, 1_000>(OUR_INPUT.unwrap());
+    println!("part two: {}", result);
+    assert_eq!(22_083, result);
 }
 
 #[cfg(test)]
@@ -223,7 +273,7 @@ mod utests {
     #[test]
     fn line_iter_x() {
         let line = Line::from_string("0,9 -> 5,9").unwrap();
-        let mut line_iter = line.iter();
+        let mut line_iter = line.iter(false);
         assert_eq!(Some((0, 9)), line_iter.next());
         assert_eq!(Some((1, 9)), line_iter.next());
         assert_eq!(Some((2, 9)), line_iter.next());
@@ -236,7 +286,7 @@ mod utests {
     #[test]
     fn line_iter_y() {
         let line = Line::from_string("9,0 -> 9,5").unwrap();
-        let mut line_iter = line.iter();
+        let mut line_iter = line.iter(false);
         assert_eq!(Some((9, 0)), line_iter.next());
         assert_eq!(Some((9, 1)), line_iter.next());
         assert_eq!(Some((9, 2)), line_iter.next());
@@ -250,13 +300,37 @@ mod utests {
     fn line_iter_x_rev() {
         let line = Line::from_string("5,9 -> 0,9").unwrap();
         println!("line: {:?}", &line);
-        let mut line_iter = line.iter();
+        let mut line_iter = line.iter(false);
         assert_eq!(Some((0, 9)), line_iter.next());
         assert_eq!(Some((1, 9)), line_iter.next());
         assert_eq!(Some((2, 9)), line_iter.next());
         assert_eq!(Some((3, 9)), line_iter.next());
         assert_eq!(Some((4, 9)), line_iter.next());
         assert_eq!(Some((5, 9)), line_iter.next());
+        assert_eq!(None, line_iter.next());
+    }
+
+    #[test]
+    fn line_iter_diag() {
+        let line = Line::from_string("4,4 -> 7,7").unwrap();
+        println!("line: {:?}", &line);
+        let mut line_iter = line.iter(true);
+        assert_eq!(Some((4, 4)), line_iter.next());
+        assert_eq!(Some((5, 5)), line_iter.next());
+        assert_eq!(Some((6, 6)), line_iter.next());
+        assert_eq!(Some((7, 7)), line_iter.next());
+        assert_eq!(None, line_iter.next());
+    }
+
+    #[test]
+    fn line_iter_diag_rev() {
+        let line = Line::from_string("7,7 -> 4,4").unwrap();
+        println!("line: {:?}", &line);
+        let mut line_iter = line.iter(true);
+        assert_eq!(Some((7, 7)), line_iter.next());
+        assert_eq!(Some((6, 6)), line_iter.next());
+        assert_eq!(Some((5, 5)), line_iter.next());
+        assert_eq!(Some((4, 4)), line_iter.next());
         assert_eq!(None, line_iter.next());
     }
 }

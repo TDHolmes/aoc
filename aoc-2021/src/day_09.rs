@@ -132,7 +132,7 @@ fn part_one(input: &str) -> isize {
 fn part_two(input: &str) -> isize {
     let mut map = HeightMap::from_str(input);
     println!("{}", map);
-    let mut basins = map.mark_basins();
+    let basins = map.mark_basins();
     println!("basins: {:?}", basins);
     let mut basin_sums = [0_usize; 256];
     for row in basins {

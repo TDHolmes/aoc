@@ -59,16 +59,15 @@ impl Cave {
     }
 
     pub fn all_caves(&self) -> CaveIter {
-        self.all_caves_inner(vec![self.name.to_owned()])
+        self.all_caves_inner()
     }
 
-    fn all_caves_inner(&self, path: Vec<String>) -> CaveIter {
+    fn all_caves_inner(&self) -> CaveIter {
         CaveIter {
             head: self,
             ind: 0,
             next_itr: None,
             complete: false,
-            path,
         }
     }
 }
@@ -78,12 +77,11 @@ struct CaveIter<'a> {
     ind: usize,
     next_itr: Option<Box<CaveIter<'a>>>,
     complete: bool,
-    path: Vec<String>,
 }
 
 /// depth-first iteration of our tree
 impl<'a> Iterator for CaveIter<'a> {
-    type Item = (&'a Cave, Vec<String>);
+    type Item = &'a Cave;
 
     fn next(&mut self) -> Option<Self::Item> {
         // if we've already traversed all of our sub-caves and even yielded ourselves, we're done
@@ -94,13 +92,11 @@ impl<'a> Iterator for CaveIter<'a> {
         // if we haven't started iterating on our sub-caves, get that initialized
         if self.next_itr.is_none() {
             if self.head.next.len() != 0 {
-                let mut path = self.path.clone();
-                path.push(self.head.next[0].name().to_owned());
-                self.next_itr = Some(Box::new(self.head.next[0].all_caves_inner(path)));
+                self.next_itr = Some(Box::new(self.head.next[0].all_caves_inner()));
             } else {
                 // we have no sub-caves. Just yield ourselves and complete
                 self.complete = true;
-                return Some((self.head, self.path.clone()));
+                return Some(self.head);
             }
         }
 
@@ -116,9 +112,7 @@ impl<'a> Iterator for CaveIter<'a> {
                 if let Some(next_cave) = self.head.next.get(self.ind) {
                     // if there is another sub-cave, start its iteration. It is guaranteed to at least yield
                     // itself, or iterate through it's sub-caves as well first.
-                    let mut path = self.path.clone();
-                    path.push(next_cave.name().to_owned());
-                    self.next_itr = Some(Box::new(next_cave.all_caves_inner(path)));
+                    self.next_itr = Some(Box::new(next_cave.all_caves_inner()));
                     return Some(
                         self.next_itr
                             .as_mut()
@@ -129,7 +123,7 @@ impl<'a> Iterator for CaveIter<'a> {
                 } else {
                     // all done iterating through sub-caves. Time to yield ourselves
                     self.complete = true;
-                    return Some((self.head, self.path.clone()));
+                    return Some(self.head);
                 }
             }
         }
@@ -222,25 +216,20 @@ mod utests {
         root.add_cave_connection(Cave::new("d"));
 
         let mut cave_iter = root.all_caves();
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("a", next_cave.name());
-        assert_eq!(vec!["e", "c", "a"], path);
 
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("b", next_cave.name());
-        assert_eq!(vec!["e", "c", "b"], path);
 
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("c", next_cave.name());
-        assert_eq!(vec!["e", "c"], path);
 
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("d", next_cave.name());
-        assert_eq!(vec!["e", "d"], path);
 
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("e", next_cave.name());
-        assert_eq!(vec!["e"], path);
 
         assert!(cave_iter.next().is_none());
     }
@@ -260,25 +249,20 @@ mod utests {
         root.add_cave_connection(Cave::new("d"));
 
         let mut cave_iter = root.all_caves();
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("a", next_cave.name());
-        assert_eq!(vec!["e", "c", "a"], path);
 
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("b", next_cave.name());
-        assert_eq!(vec!["e", "c", "b"], path);
 
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("c", next_cave.name());
-        assert_eq!(vec!["e", "c"], path);
 
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("d", next_cave.name());
-        assert_eq!(vec!["e", "d"], path);
 
-        let (next_cave, path) = cave_iter.next().unwrap();
+        let next_cave = cave_iter.next().unwrap();
         assert_eq!("e", next_cave.name());
-        assert_eq!(vec!["e"], path);
 
         assert!(cave_iter.next().is_none());
     }

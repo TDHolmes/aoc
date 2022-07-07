@@ -187,7 +187,7 @@ fn part_two(input: &str) -> isize {
 
 #[test]
 fn example_part_one() {
-    SimpleLogger::new().init().unwrap();
+    SimpleLogger::new().init().ok();
     let result = part_one(EXAMPLE_INPUT);
     println!("example result: {}", result);
     assert_eq!(result, 17);
@@ -195,9 +195,8 @@ fn example_part_one() {
 
 #[test]
 fn example_part_two() {
-    let result = part_two(EXAMPLE_INPUT);
-    println!("example result: {}", result);
-    assert_eq!(result, 2);
+    SimpleLogger::new().init().ok();
+    part_two(EXAMPLE_INPUT);
 }
 
 #[test]
@@ -209,6 +208,6 @@ fn test_part_one() {
 
 #[test]
 fn test_part_two() {
-    SimpleLogger::new().init().unwrap();
+    SimpleLogger::new().init().ok();
     part_two(OUR_INPUT.unwrap());
 }

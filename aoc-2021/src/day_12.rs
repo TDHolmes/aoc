@@ -1,6 +1,8 @@
 //! AOC Day xx
 // use aoc_2021;
 
+use std::{cell::RefCell, rc::Rc};
+
 const EXAMPLE_INPUT: &str = "LP-cb
 PK-yk
 bf-end
@@ -30,20 +32,26 @@ bf-LP";
 
 #[derive(Debug, Clone)]
 struct Cave {
-    name: &'static str,
+    name: String,
     next: Vec<Cave>,
 }
 
+type BoxedCave = Rc<Box<RefCell<Cave>>>;
+
 impl Cave {
-    pub fn new(input: &'static str) -> Self {
+    pub fn new(input: &str) -> Self {
         Self {
-            name: input,
+            name: input.into(),
             next: vec![],
         }
     }
 
+    pub fn new_boxed_ref(input: &str) -> BoxedCave {
+        Rc::new(Box::new(RefCell::new(Cave::new(input.into()))))
+    }
+
     pub fn name(&self) -> &str {
-        self.name
+        &self.name
     }
 
     pub fn is_small(&self) -> bool {
@@ -54,15 +62,11 @@ impl Cave {
             .is_ascii_lowercase()
     }
 
-    pub fn add_cave_connection(&mut self, cave: Cave) {
+    pub fn add_cave_connection(&mut self, cave: Self) {
         self.next.push(cave);
     }
 
     pub fn all_caves(&self) -> CaveIter {
-        self.all_caves_inner()
-    }
-
-    fn all_caves_inner(&self) -> CaveIter {
         CaveIter {
             head: self,
             ind: 0,
@@ -92,7 +96,7 @@ impl<'a> Iterator for CaveIter<'a> {
         // if we haven't started iterating on our sub-caves, get that initialized
         if self.next_itr.is_none() {
             if self.head.next.len() != 0 {
-                self.next_itr = Some(Box::new(self.head.next[0].all_caves_inner()));
+                self.next_itr = Some(Box::new(self.head.next[0].all_caves()));
             } else {
                 // we have no sub-caves. Just yield ourselves and complete
                 self.complete = true;
@@ -112,7 +116,7 @@ impl<'a> Iterator for CaveIter<'a> {
                 if let Some(next_cave) = self.head.next.get(self.ind) {
                     // if there is another sub-cave, start its iteration. It is guaranteed to at least yield
                     // itself, or iterate through it's sub-caves as well first.
-                    self.next_itr = Some(Box::new(next_cave.all_caves_inner()));
+                    self.next_itr = Some(Box::new(next_cave.all_caves()));
                     return Some(
                         self.next_itr
                             .as_mut()
@@ -133,32 +137,42 @@ impl<'a> Iterator for CaveIter<'a> {
     }
 }
 
-fn part_one(input: &str) -> isize {
-    // let mut root_cave = Cave::new("start");
-    // let mut orphan_caves: Vec<Cave> = vec![];
+fn lines_to_cave(lines: &mut dyn Iterator<Item = &str>) -> BoxedCave {
+    let mut root_cave = Cave::new_boxed_ref("start");
+    let mut orphan_caves: Vec<BoxedCave> = vec![];
 
-    for _line in input.split_terminator("\n") {
-        // let mut split = line.split("-");
-        // let left = split.next().expect("invalid cave mapping given");
-        // let right = split.next().expect("invalid cave mapping given");
-        // let right_cave = {
-        //     for (ind, cave) in orphan_caves.iter().enumerate() {
-        //         if cave.name() == right {
-        //             break orphan_caves.remove(index);
-        //         }
-        //     }
-        //     Cave::new(right)
-        // };
-        // let left_cave = {
-        //     for (ind, cave) in orphan_caves.iter().enumerate() {
-        //         if cave.name() == left {
-        //             break orphan_caves.remove(index);
-        //         }
-        //     }
-        //     Cave::new(left)
-        // };
+    for line in lines {
+        let mut split = line.split("-");
+        let left = split.next().expect("invalid cave mapping given");
+        let right = split.next().expect("invalid cave mapping given");
+
+        let mut left_cave = None;
+        let mut right_cave = None;
+
+        let root_cave_borrowed = root_cave.as_ref().borrow();
+        for cave in root_cave_borrowed.all_caves() {
+            if cave.name() == left {
+                left_cave = Some(cave);
+            } else if cave.name() == right {
+                right_cave = Some(cave);
+            }
+        }
+
+        if let Some(lcave) = left_cave {
+        } else {
+            orphan_caves.push(Cave::new_boxed_ref(left));
+        }
+        if let Some(rcave) = right_cave {
+        } else {
+            orphan_caves.push(Cave::new_boxed_ref(right));
+        }
     }
 
+    root_cave
+}
+
+fn part_one(input: &str) -> isize {
+    let root = lines_to_cave(&mut input.split_terminator("\n"));
     0
 }
 

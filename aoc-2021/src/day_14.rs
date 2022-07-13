@@ -1,6 +1,8 @@
 //! AOC Day xx
 // use aoc_2021;
 
+use std::collections::HashMap;
+
 const EXAMPLE_INPUT: &str = "NNCB
 
 CH -> B
@@ -24,11 +26,51 @@ CN -> C
 const OUR_INPUT: Result<&str, std::str::Utf8Error> =
     std::str::from_utf8(include_bytes!("../assets/day_14.txt"));
 
+#[derive(Copy, Clone)]
+struct PolyPair {
+    /// The polymer pair
+    pub pair: [char; 2],
+    /// The number of instances of this polymerization pair
+    pub quantity: usize,
+}
+
+impl PolyPair {
+    pub fn new(pair: [char; 2], quantity: usize) -> PolyPair {
+        PolyPair { pair, quantity }
+    }
+
+    pub fn insert(self, insertion: char) -> (PolyPair, PolyPair) {
+        let first = PolyPair {
+            pair: [self.pair[0], insertion],
+            quantity: self.quantity,
+        };
+        let second = PolyPair {
+            pair: [insertion, self.pair[1]],
+            quantity: self.quantity,
+        };
+
+        // println!("{} -> {}, {}", self, first, second);
+
+        (first, second)
+    }
+}
+
+impl std::fmt::Display for PolyPair {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{{'{}{}', {}}}",
+            self.pair[0], self.pair[1], self.quantity
+        )?;
+        Ok(())
+    }
+}
+
 struct Polymerization {
-    /// Our current polymer
-    state: Vec<char>,
-    /// Our pending state we build up during [`Self::step`].
-    insertions: Vec<(usize, char)>,
+    /// Our current state
+    state: Vec<PolyPair>,
+    /// Our pending
+    pending: Vec<PolyPair>,
     /// Our insertion rules
     rules: Vec<(char, char, char)>,
 }
@@ -37,7 +79,14 @@ impl Polymerization {
     pub fn new(input: &str) -> Polymerization {
         let mut rules = vec![];
         let mut line_iter = input.split_terminator("\n");
-        let state: Vec<char> = line_iter.next().unwrap().chars().collect();
+        let mut previous = ' ';
+        let mut state: Vec<PolyPair> = vec![];
+        for char in line_iter.next().unwrap().chars() {
+            state.push(PolyPair::new([previous, char], 1));
+            previous = char;
+        }
+        state.push(PolyPair::new([previous, ' '], 1));
+
         line_iter.next().unwrap(); // empty newline
 
         for line in line_iter {
@@ -55,78 +104,91 @@ impl Polymerization {
 
         Polymerization {
             state,
-            insertions: vec![],
+            pending: vec![],
             rules,
         }
     }
 
     pub fn step(&mut self) {
-        let mut last = ' ';
-        for (ind, c) in self.state.iter().enumerate() {
+        for pair in self.state.drain(0..) {
+            let mut match_found = false;
             for (l1, l2, r) in self.rules.iter() {
-                if *l1 == last && *l2 == *c {
-                    self.insertions.push((ind, *r));
-                    // println!("Applying rule {}{}->{} (ind={})", l1, l2, r, ind);
+                if pair.pair[0] == *l1 && pair.pair[1] == *l2 {
+                    let (p1, p2) = pair.insert(*r);
+                    Self::insert_to_pending(&mut self.pending, p1);
+                    Self::insert_to_pending(&mut self.pending, p2);
+                    match_found = true;
+                    break;
                 }
             }
-            last = *c;
+
+            if !match_found {
+                Self::insert_to_pending(&mut self.pending, pair);
+            }
         }
 
-        // insert the insertions while moving around the existing state values
-        let mut right_end = self.state.len();
-        self.state
-            .resize(self.state.len() + self.insertions.len(), '-');
-        let mut right_end_dest = self.state.len();
-        for (ind, value) in self.insertions.drain(0..).rev() {
-            let dest = right_end_dest - (right_end - ind);
+        std::mem::swap(&mut self.state, &mut self.pending);
+    }
 
-            self.state.copy_within(ind..right_end, dest);
-            *self.state.get_mut(ind).unwrap() = value;
+    fn insert_to_pending(pending: &mut Vec<PolyPair>, pair: PolyPair) {
+        // check if pair already exists in pending
+        let mut found_match = false;
+        for pending_pair in pending.iter_mut() {
+            if pending_pair.pair == pair.pair {
+                pending_pair.quantity += pair.quantity;
+                found_match = true;
+                break;
+            }
+        }
 
-            right_end_dest = dest;
-            right_end = ind + 1;
+        if !found_match {
+            pending.push(pair);
         }
     }
 
     #[allow(dead_code)]
     pub fn print_state(&self) {
-        for c in self.state.iter() {
-            print!("{}", c);
-        }
         print!("\n");
     }
 
     pub fn compute(&self) -> usize {
-        // let mut map = std::collections::HashMap::new();
-        let mut sums: [usize; 26] = [0; 26];
-        for (_i, c) in self.state.iter().enumerate() {
-            sums[*c as usize - 'A' as usize] += 1;
-        }
+        let mut count = HashMap::new();
 
-        let mut smallest = usize::MAX;
-        let mut largest = usize::MIN;
-
-        for val in sums.iter() {
-            if *val > largest {
-                largest = *val;
-            }
-            if *val < smallest && *val > 0 {
-                smallest = *val;
+        for pair in self.state.iter() {
+            for c in pair.pair.iter() {
+                if let Some(v) = count.get_mut(c) {
+                    *v += pair.quantity;
+                } else {
+                    count.insert(*c, pair.quantity);
+                }
             }
         }
 
-        largest - smallest
+        count.remove(&' '); // remove the dummy chars
+
+        let mut min = usize::MAX;
+        let mut max = usize::MIN;
+
+        for (_k, v) in count.iter() {
+            if *v < min {
+                min = *v;
+            }
+            if *v > max {
+                max = *v;
+            }
+        }
+
+        max / 2 - min / 2
     }
 }
 
 impl std::fmt::Display for Polymerization {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Poly {{")?;
-        write!(f, "\t")?;
         for c in self.state.iter() {
-            write!(f, "{}", c)?;
+            writeln!(f, "\t{}", c)?;
         }
-        write!(f, "\n\n")?;
+        write!(f, "\n")?;
 
         for (l1, l2, r) in self.rules.iter() {
             writeln!(f, "\t{}{} -> {}", l1, l2, r)?;
@@ -148,7 +210,6 @@ fn part_one(input: &str) -> isize {
     poly.compute() as isize
 }
 
-#[allow(dead_code)]
 fn part_two(input: &str) -> isize {
     let mut poly = Polymerization::new(input);
     println!("{}", poly);
@@ -170,9 +231,9 @@ fn example_part_one() {
 
 #[test]
 fn example_part_two() {
-    // let result = part_two(EXAMPLE_INPUT);
-    // println!("example result: {}", result);
-    // assert_eq!(result, 2188189693529);
+    let result = part_two(EXAMPLE_INPUT);
+    println!("example result: {}", result);
+    assert_eq!(result, 2188189693529);
 }
 
 #[test]
@@ -184,7 +245,7 @@ fn test_part_one() {
 
 #[test]
 fn test_part_two() {
-    // let result = part_two(OUR_INPUT.unwrap());
-    // println!("part two: {}", result);
-    // assert_eq!(42, result);
+    let result = part_two(OUR_INPUT.unwrap());
+    println!("part two: {}", result);
+    assert_eq!(4332887448171, result);
 }

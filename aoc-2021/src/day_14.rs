@@ -73,28 +73,22 @@ impl Polymerization {
         }
 
         // insert the insertions while moving around the existing state values
-        let mut insertions = 0;
         let mut right_end = self.state.len();
         self.state
             .resize(self.state.len() + self.insertions.len(), '-');
         let mut right_end_dest = self.state.len();
         for (ind, value) in self.insertions.drain(0..).rev() {
             let dest = right_end_dest - (right_end - ind);
-            // println!(
-            //     "Moving {}..{} to {}..{}",
-            //     ind, right_end, dest, right_end_dest
-            // );
 
             self.state.copy_within(ind..right_end, dest);
             *self.state.get_mut(ind).unwrap() = value;
 
             right_end_dest = dest;
             right_end = ind + 1;
-            insertions += 1;
         }
-        // self.print_state();
     }
 
+    #[allow(dead_code)]
     pub fn print_state(&self) {
         for c in self.state.iter() {
             print!("{}", c);
@@ -154,6 +148,7 @@ fn part_one(input: &str) -> isize {
     poly.compute() as isize
 }
 
+#[allow(dead_code)]
 fn part_two(input: &str) -> isize {
     let mut poly = Polymerization::new(input);
     println!("{}", poly);

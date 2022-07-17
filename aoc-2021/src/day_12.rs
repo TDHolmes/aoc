@@ -54,14 +54,6 @@ impl Cave {
         &self.name
     }
 
-    pub fn is_small(&self) -> bool {
-        self.name
-            .chars()
-            .next()
-            .expect("invalid cave")
-            .is_ascii_lowercase()
-    }
-
     pub fn add_cave_connection(&mut self, cave: Self) {
         self.next.push(cave);
     }
@@ -138,7 +130,7 @@ impl<'a> Iterator for CaveIter<'a> {
 }
 
 fn lines_to_cave(lines: &mut dyn Iterator<Item = &str>) -> BoxedCave {
-    let mut root_cave = Cave::new_boxed_ref("start");
+    let root_cave = Cave::new_boxed_ref("start");
     let mut orphan_caves: Vec<BoxedCave> = vec![];
 
     for line in lines {
@@ -158,11 +150,11 @@ fn lines_to_cave(lines: &mut dyn Iterator<Item = &str>) -> BoxedCave {
             }
         }
 
-        if let Some(lcave) = left_cave {
+        if let Some(_lcave) = left_cave {
         } else {
             orphan_caves.push(Cave::new_boxed_ref(left));
         }
-        if let Some(rcave) = right_cave {
+        if let Some(_rcave) = right_cave {
         } else {
             orphan_caves.push(Cave::new_boxed_ref(right));
         }
@@ -172,7 +164,7 @@ fn lines_to_cave(lines: &mut dyn Iterator<Item = &str>) -> BoxedCave {
 }
 
 fn part_one(input: &str) -> isize {
-    let root = lines_to_cave(&mut input.split_terminator("\n"));
+    let _root = lines_to_cave(&mut input.split_terminator("\n"));
     0
 }
 

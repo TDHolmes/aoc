@@ -12,12 +12,25 @@ const EXAMPLE_INPUT: &str = "1163751742
 3125421639
 1293138521
 2311944581";
+
+const EXAMPLE_INPUT_2: &str = "1999999999
+1999999999
+1999999999
+1999999999
+1999999999
+1999999999
+1999999999
+1999999111
+1999999191
+1111111191";
 const OUR_INPUT: Result<&str, std::str::Utf8Error> =
     std::str::from_utf8(include_bytes!("../assets/day_15.txt"));
 
 struct CaveRisk<const X: usize, const Y: usize> {
     risk: [[u8; Y]; X],
     distance: [[usize; Y]; X],
+    visited: [[bool; Y]; X],
+    current: (usize, usize),
     target: (usize, usize),
 }
 
@@ -40,6 +53,8 @@ impl<const X: usize, const Y: usize> CaveRisk<X, Y> {
         let mut cave = Box::new(CaveRisk {
             risk: *map,
             distance: [[usize::MAX; Y]; X],
+            visited: [[false; Y]; X],
+            current: (0, 0),
             target: (X - 1, Y - 1),
         });
 
@@ -48,27 +63,54 @@ impl<const X: usize, const Y: usize> CaveRisk<X, Y> {
         cave
     }
 
-    pub fn compute(&mut self) {
+    pub fn step(&mut self) -> bool {
+        // visit all neighbors
+        let x = self.current.0;
+        let y = self.current.1;
+        for (dx, dy) in MOVE_DELTAS.iter() {
+            let px = x as isize + dx;
+            let py = y as isize + dy;
+            // ensure the point is valid
+            if px < 0 || px >= X as isize || py < 0 || py >= Y as isize {
+                continue;
+            }
+
+            let px = px as usize;
+            let py = py as usize;
+            if self.visited[px][py] {
+                continue;
+            }
+
+            // compute potential new distance. Use if it's shorter than existing
+            let distance = self.distance[x][y] + self.risk[px][py] as usize;
+            if distance < self.distance[px][py] {
+                self.distance[px][py] = distance;
+            }
+        }
+
+        self.visited[x][y] = true;
+
+        // find next "current"
+        let mut next = (0, 0);
+        let mut next_distance = usize::MAX;
         for y in 0..Y {
             for x in 0..X {
-                // visit all neighbors
-                for (dx, dy) in MOVE_DELTAS.iter() {
-                    let px = x as isize + dx;
-                    let py = y as isize + dy;
-                    // ensure the point is valid
-                    if px < 0 || px >= X as isize || py < 0 || py >= Y as isize {
-                        continue;
-                    }
-
-                    // compute potential new distance. Use if it's shorter than existing
-                    let px = px as usize;
-                    let py = py as usize;
-                    let distance = self.distance[x][y] + self.risk[px][py] as usize;
-                    if distance < self.distance[px][py] {
-                        self.distance[px][py] = distance;
-                    }
+                if self.visited[x][y] {
+                    continue;
+                }
+                if self.distance[x][y] < next_distance {
+                    next_distance = self.distance[x][y];
+                    next = (x, y);
                 }
             }
+        }
+        self.current = next;
+
+        // check if we should halt
+        if self.current == self.target {
+            return true;
+        } else {
+            return false;
         }
     }
 }
@@ -76,9 +118,10 @@ impl<const X: usize, const Y: usize> CaveRisk<X, Y> {
 impl<const X: usize, const Y: usize> std::fmt::Display for CaveRisk<X, Y> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // calculate the most efficient path, if it is fully computed
+        let compute_path = false;
         let mut position = self.target;
         let mut path = vec![];
-        if self.distance[position.0][position.1] != usize::MAX {
+        if compute_path && self.distance[position.0][position.1] != usize::MAX {
             path.push(position);
             loop {
                 let mut least_expensive = usize::MAX;
@@ -89,12 +132,16 @@ impl<const X: usize, const Y: usize> std::fmt::Display for CaveRisk<X, Y> {
                 }
 
                 for (dx, dy) in MOVE_DELTAS.iter() {
-                    let px = (position.0 as isize + dx) as usize;
-                    let py = (position.1 as isize + dy) as usize;
+                    let px = position.0 as isize + dx;
+                    let py = position.1 as isize + dy;
                     // ensure the point is valid
-                    if px >= X || py >= Y {
+                    if px >= X as isize || py >= Y as isize || px < 0 || py < 0 {
                         continue;
                     }
+
+                    let px = px as usize;
+                    let py = py as usize;
+
                     if self.distance[px][py] < least_expensive {
                         least_expensive = self.distance[px][py];
                         next_position = (px, py);
@@ -162,7 +209,10 @@ fn expand_map<const X: usize, const Y: usize, const EX: usize, const EY: usize>(
 fn part_one<const X: usize, const Y: usize>(input: &str) -> isize {
     let mut cave = CaveRisk::<X, Y>::new(input);
 
-    cave.compute();
+    let mut done = false;
+    while !done {
+        done = cave.step();
+    }
 
     print!("{}", cave);
 
@@ -174,16 +224,13 @@ fn part_two<const X: usize, const Y: usize, const EX: usize, const EY: usize>(
     input: &str,
 ) -> isize {
     let map: [[u8; EY]; EX] = expand_map::<X, Y, EX, EY>(input);
-    // for y in 0..EY {
-    //     for x in 0..EX {
-    //         print!("{}", map[x][y]);
-    //     }
-    //     print!("\n");
-    // }
 
     let mut cave = CaveRisk::<EX, EY>::new_from_map(&map);
 
-    cave.compute();
+    let mut done = false;
+    while !done {
+        done = cave.step();
+    }
 
     print!("{}", cave);
 
@@ -197,6 +244,10 @@ fn example_part_one() {
     let result = part_one::<10, 10>(EXAMPLE_INPUT);
     println!("example result: {}", result);
     assert_eq!(result, 40);
+
+    let result = part_one::<10, 10>(EXAMPLE_INPUT_2);
+    println!("example result: {}", result);
+    assert_eq!(result, 22);
 }
 
 #[test]
@@ -217,6 +268,5 @@ fn test_part_one() {
 fn test_part_two() {
     let result = part_two::<100, 100, 500, 500>(OUR_INPUT.unwrap());
     println!("part two: {}", result);
-    more_asserts::assert_lt!(2990, result);
-    more_asserts::assert_gt!(2900, result);
+    assert_eq!(2976, result);
 }
